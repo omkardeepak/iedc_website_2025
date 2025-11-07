@@ -54,6 +54,7 @@ export default function ArcAvatarMotion() {
   const singleDuration = 7;
   const [index, setIndex] = useState(0);
   const [animKey, setAnimKey] = useState(0);
+  const [isLaptopOrLarger, setIsLaptopOrLarger] = useState(window.innerWidth >= 1024);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -63,36 +64,46 @@ export default function ArcAvatarMotion() {
     return () => clearInterval(id);
   }, []);
 
-  // responsive semicircle path anchored at left edge and vertically centered
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [path, setPath] = useState("M0,100 A400,400 0 0,1 0,900");
-  const [svgSize, setSvgSize] = useState({ w: 1000, h: 1000 });
-
-  useLayoutEffect(() => {
-    function update() {
-      const el = containerRef.current;
-      const w = el?.clientWidth ?? window.innerWidth;
-      const h = el?.clientHeight ?? window.innerHeight;
-      // radius — keep semicircle big but fit inside viewport
-      const r = Math.min(h * 0.45, w * 0.45);
-      const cy = Math.round(h / 2); // center Y
-      // semicircle anchored at x=0 from top point to bottom point
-      const topY = Math.round(cy - r);
-      const bottomY = Math.round(cy + r);
-      const p = `M0,${topY} A${r},${r} 0 0,1 0,${bottomY}`;
-      setPath(p);
-      setSvgSize({ w, h });
-    }
-
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
+  useEffect(() => {
+    const handleResize = () => setIsLaptopOrLarger(window.innerWidth >= 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // responsive semicircle path anchored at left edge and vertically centered
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [path, setPath] = useState(["M0,100 A400,400 0 0,1 0,900"]);
+  const [svgSize, setSvgSize] = useState({ w: 1000, h: 1000 });
+
+useLayoutEffect(() => {
+  function update() {
+    const el = containerRef.current;
+    const w = el?.clientWidth ?? window.innerWidth;
+    const h = el?.clientHeight ?? window.innerHeight;
+    const r = Math.min(h * 0.45, w * 0.45);
+    const cy = Math.round(h / 2);
+    const topY = Math.round(cy - r);
+    const bottomY = Math.round(cy + r);
+
+    // Use freshly measured w, not svgSize.w
+    const leftX = isLaptopOrLarger ? Math.round(w * 0.08) : 0;
+    const rightX = isLaptopOrLarger ? Math.round(w * 0.75) : w;
+
+    const leftPath = `M${leftX},${topY} A${r},${r} 0 0,1 ${leftX},${bottomY}`;
+    const rightPath = `M${rightX},${topY} A${r},${r} 0 0,0 ${rightX},${bottomY}`;
+
+    setPath(isLaptopOrLarger ? [leftPath, rightPath] : [leftPath]);
+    setSvgSize({ w, h });
+  }
+
+  update();
+  window.addEventListener('resize', update);
+  return () => window.removeEventListener('resize', update);
+}, [isLaptopOrLarger]);
   return (
     <div
       ref={containerRef}
-      className="w-screen h-screen bg-white overflow-hidden relative"
+      className="w-screen  h-screen bg-white overflow-hidden relative"
     >
       <style>{`
         @keyframes orbit {
@@ -114,12 +125,25 @@ export default function ArcAvatarMotion() {
         preserveAspectRatio="none"
         xmlns="http://www.w3.org/2000/svg"
       >
-        <path d={path} fill="none" stroke="#e5e7eb" strokeWidth="2" strokeLinecap="round" />
+        {path.map((p, idx) => (
+          <path key={idx} d={p} fill="none" stroke="#e5e7eb" strokeWidth="2" strokeLinecap="round" />
+        ))}
       </svg>
 
       {/* single avatar that travels the semicircle (left-edge, vertically centered) */}
+      {isLaptopOrLarger ? (
+        <>
+{/* Left path: only one even-indexed avatar at a time */}
+{(() => {
+  const leftTeam = team.filter((_, i) => i % 2 === 0);
+  const leftIndex = index % leftTeam.length;
+  const member = leftTeam[leftIndex];
+
+  return (
+    <>
+      {/* Left Avatar */}
       <div
-        key={animKey}
+        key={`left-${leftIndex}`}
         style={{
           position: "absolute",
           left: 0,
@@ -127,11 +151,10 @@ export default function ArcAvatarMotion() {
           width: 60,
           height: 60,
           transform: "translate(30px,-50%)",
-          offsetPath: `path('${path}')`,
-          WebkitOffsetPath: `path('${path}')`,
+          offsetPath: `path('${path[0]}')`,
+          offsetDistance: "0%",
           offsetRotate: "0deg",
-          WebkitOffsetRotate: "0deg",
-          animation: `orbit ${singleDuration}s linear forwards`,
+          animation: `orbit 7s linear infinite`,
           zIndex: 20,
           willChange: "transform, offset-distance",
         }}
@@ -142,25 +165,209 @@ export default function ArcAvatarMotion() {
             height: "300%",
             borderRadius: "50%",
             overflow: "hidden",
-            background: team[index].color,
+            background: member.color,
             border: "3px solid #fff",
             boxSizing: "border-box",
             display: "flex",
           }}
         >
           <img
-            src={team[index].src}
-            alt={team[index].name}
+            src={member.src}
+            alt={member.name}
             style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-            onError={(e: any) => {
-              e.currentTarget.style.display = "none";
+          />
+        </div>
+      </div>
+
+      {/* Left Info Text */}
+      <div
+        key={`left-text-${leftIndex}`}
+        style={{
+          position: "absolute",
+          left: 80, // near avatar
+          top: "50%",
+          transform: "translateY(-50%)",
+          color: "#000",
+          zIndex: 30,
+        }}
+      >
+        <div
+          className="fadeSlideText"
+          style={{ fontWeight: 700, fontSize: 32, marginBottom: 8 }}
+        >
+          {member.name}
+        </div>
+        <div
+          className="fadeSlideText"
+          style={{ fontSize: 20, color: "#333" }}
+        >
+          {member.title}
+        </div>
+      </div>
+
+      {/* Animation */}
+      <style>{`
+        @keyframes fadeSlideIn {
+          from { opacity: 0; transform: translateX(20px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+
+        .fadeSlideText {
+          opacity: 0;
+          animation: fadeSlideIn 0.8s ease forwards;
+        }
+      `}</style>
+    </>
+  );
+})()}
+
+
+{/* Right path: only one odd-indexed avatar at a time */}
+{(() => {
+  const rightTeam = team.filter((_, i) => i % 2 === 1);
+  const rightIndex = index % rightTeam.length;
+  const member = rightTeam[rightIndex];
+
+  return (
+    <>
+      {/* Right Avatar */}
+      <div
+        key={`right-${rightIndex}`}
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          width: 60,
+          height: 60,
+          transform: "translate(-30px,-50%)",
+          offsetPath: `path('${path[1]}')`,
+          WebkitOffsetPath: `path('${path[1]}')`,
+          offsetRotate: "0deg",
+          WebkitOffsetRotate: "0deg",
+          animation: `orbit 7s linear infinite`,
+          zIndex: 20,
+          willChange: "transform, offset-distance",
+        }}
+      >
+        <div
+          style={{
+            width: "300%",
+            height: "300%",
+            borderRadius: "50%",
+            overflow: "hidden",
+            background: member.color,
+            border: "3px solid #fff",
+            boxSizing: "border-box",
+            display: "flex",
+          }}
+        >
+          <img
+            src={member.src}
+            alt={member.name}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              transform: "rotate(0deg)",
+              transformOrigin: "center center",
+              display: "block",
             }}
           />
         </div>
       </div>
 
+      {/* Right Info Text */}
+      <div
+        key={`right-text-${rightIndex}`}
+        style={{
+          position: "absolute",
+          right: 280, // near avatar
+          top: "50%",
+          transform: "translateY(-50%)",
+          color: "#000",
+          zIndex: 30,
+          textAlign: "right",
+        }}
+      >
+        <div
+          className="fadeSlideText"
+          style={{ fontWeight: 700, fontSize: 32, marginBottom: 8 }}
+        >
+          {member.name}
+        </div>
+        <div
+          className="fadeSlideText"
+          style={{ fontSize: 20, color: "#333" }}
+        >
+          {member.title}
+        </div>
+      </div>
+
+      {/* Animation */}
+      <style>{`
+        @keyframes fadeSlideIn {
+          from { opacity: 0; transform: translateX(20px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+
+        .fadeSlideText {
+          opacity: 0;
+          animation: fadeSlideIn 0.8s ease forwards;
+        }
+      `}</style>
+    </>
+  );
+})()}
+
+
+
+        </>
+      ) : (
+        <div className=""
+          key={animKey}
+          style={{
+            position: "absolute",
+            left: -90,
+            top: 0,
+            width: 60,
+            height: 60,
+            transform: "translate(30px,-50%)",
+            offsetPath: `path('${path[0]}')`,
+            WebkitOffsetPath: `path('${path[0]}')`,
+            offsetRotate: "0deg",
+            WebkitOffsetRotate: "0deg",
+            animation: `orbit ${singleDuration}s linear forwards`,
+            zIndex: 20,
+            willChange: "transform, offset-distance",
+          }}
+        >
+          <div
+            style={{
+              width: "250%",
+              height: "250%",
+              borderRadius: "50%",
+              overflow: "hidden",
+              background: team[index].color,
+              border: "3px solid #fff",
+              boxSizing: "border-box",
+              display: "flex",
+            }}
+          >
+            <img
+              src={team[index].src}
+              alt={team[index].name}
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+              onError={(e: any) => {
+                e.currentTarget.style.display = "none";
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Middle-right text panel — shows name, title, bio for the current avatar */}
       <div
+      className="lg:hidden pl-24"
         key={`text-${animKey}`}
         style={{
           position: "absolute",
@@ -176,7 +383,7 @@ export default function ArcAvatarMotion() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 6 }}>
-          <div  className="font-serif text-3xl text-gray-800" style={{ fontSize: 50, fontWeight: 700, textAlign: "center" }}>
+          <div  className="font-serif text-2xl  lg:text-3xl text-gray-800" style={{ fontWeight: 700, textAlign: "center" }}>
             {team[index].name}
           </div>
 
@@ -198,7 +405,7 @@ export default function ArcAvatarMotion() {
           ) : null}
         </div>
 
-        <div style={{ fontSize: 20, fontWeight: 600, marginBottom: 8, color: "#000" }}>
+        <div className="lg:text-lg text-md"style={{  fontWeight: 600, marginBottom: 8, color: "#000" }}>
           {team[index].title}
         </div>
         <div style={{ fontSize: 13, color: "#000", lineHeight: 1.3 }}>
@@ -208,4 +415,3 @@ export default function ArcAvatarMotion() {
     </div>
   );
 }
-
