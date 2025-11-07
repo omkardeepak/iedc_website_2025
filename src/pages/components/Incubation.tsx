@@ -31,8 +31,12 @@ const Incubation = () => {
               startups in various domains, fostering a vibrant entrepreneurial ecosystem within the university.
             </p>
           </div>
-          <div className="md:w-1/2 md:pl-8 flex justify-center">
-            <img src="/Cittic Logo.svg" alt="CITTIC Logo" className="w-80 h-80 mb-6 md:mb-0" />
+          <div className="md:w-1/2 md:pl-8 flex justify-center overflow-hidden">
+            <img 
+              src="/Cittic Logo.svg" 
+              alt="CITTIC Logo" 
+              className="w-80 h-80 mb-6 md:mb-0 transform transition-transform duration-500 ease-in-out hover:scale-110 hover:brightness-110"
+            />
           </div>
         </div>
 
@@ -48,8 +52,12 @@ const Incubation = () => {
               Start-up Ecosystem Technology Business Incubator)
             </p>
           </div>
-          <div className="md:w-1/2 md:pr-8 flex justify-center">
-            <img src="/rusa.jpeg" alt="RUSA Logo" className="w-80 h-80 mb-6 md:mb-0" />
+          <div className="md:w-1/2 md:pr-8 flex justify-center overflow-hidden">
+            <img 
+              src="/rusa.jpeg" 
+              alt="RUSA Logo" 
+              className="w-80 h-80 mb-6 md:mb-0 transform transition-transform duration-500 ease-in-out hover:scale-110 hover:brightness-110"
+            />
           </div>
         </div>
       </div>
